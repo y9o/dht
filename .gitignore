@@ -19,3 +19,6 @@
 
 # Go workspace file
 go.work
+
+dht22
+*.bat
