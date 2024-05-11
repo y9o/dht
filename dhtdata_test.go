@@ -38,3 +38,62 @@ func TestDHT22Data_Set(t *testing.T) {
 		})
 	}
 }
+
+func TestDHT11Data_Set(t *testing.T) {
+	type args struct {
+		raw uint32
+		hum float32
+		tmp float32
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{"33 26", args{0b00100001_00000000_00011010_00000000, 33, 26}, true},
+	}
+	var buf DHT11Data
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := buf.Set(tt.args.raw); got != tt.want {
+				t.Errorf("%s:DHT11Data.Set() = %v, want %v", tt.name, got, tt.want)
+			}
+			if got := buf.Temp(); got != tt.args.tmp {
+				t.Errorf("%s:DHT11Data.Temp() = %v, want %v ", tt.name, got, tt.args.tmp)
+			}
+			if got := buf.Hum(); got != tt.args.hum {
+				t.Errorf("%s:DHT11Data.Hum() = %v, want %v ", tt.name, got, tt.args.hum)
+			}
+		})
+	}
+}
+
+func TestDHT12Data_Set(t *testing.T) {
+	type args struct {
+		raw uint32
+		hum float32
+		tmp float32
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{"56.8 26.6", args{0b00111000_00001000_00011010_00000110, 56.8, 26.6}, true},
+		{"56.8 -26.6", args{0b00111000_00001000_00011010_10000110, 56.8, -26.6}, false},
+	}
+	var buf DHT12Data
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := buf.Set(tt.args.raw); got != tt.want {
+				t.Errorf("%s:DHT12Data.Set() = %v, want %v", tt.name, got, tt.want)
+			}
+			if got := buf.Temp(); got != tt.args.tmp {
+				t.Errorf("%s:DHT12Data.Temp() = %v, want %v ", tt.name, got, tt.args.tmp)
+			}
+			if got := buf.Hum(); got != tt.args.hum {
+				t.Errorf("%s:DHT12Data.Hum() = %v, want %v ", tt.name, got, tt.args.hum)
+			}
+		})
+	}
+}

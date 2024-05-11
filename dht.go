@@ -3,52 +3,54 @@ package dht
 import (
 	"fmt"
 	"time"
-
-	"github.com/warthog618/go-gpiocdev"
+	"unsafe"
 )
 
-type Sleep struct {
+type Cfg struct {
 	Pre   time.Duration //
 	Low   time.Duration // check datasheet
 	High  time.Duration //
 	Retry time.Duration //
+	Vague int           // The first bit is 0, so the calculation is allowed with 40-$Vague bits of data. Possibility of $Vague bits off measurements 8%(0b1000)=>4%(0b0100)
+	// 最初のビットは0なので40-$Vagueビットのデータでの計算を許可する。$Vagueビットずれた計測値になる可能性 8%(0b1000)=>4%(0b0100)
 }
 
-// for DHT22
-var DefaultSleep = Sleep{
+// for DHT22 and DHT11
+var CfgDHT22 = Cfg{
 	Pre:   0,
-	Low:   11 * time.Millisecond,
+	Low:   18 * time.Millisecond,
 	High:  0,
-	Retry: time.Second,
+	Retry: 2 * time.Second,
+	Vague: 0,
 }
 
-var Maximum_number_of_reads uint32 = 1000
 var ErrinvalidData = fmt.Errorf("invalid received data")
 var ErrChecksum = fmt.Errorf("received data checksum error")
 
 type DHTxx struct {
-	line  *gpiocdev.Line
-	vals  []uint32
-	Limit uint32 //Maximum_number_of_reads
-	Sleep Sleep  //DefaultSleep
+	chip      string
+	offset    int
+	vals      []uint16
+	fval      int
+	readCount uint32
+	Limit     uint32
+	Config    Cfg
+	pcgo      unsafe.Pointer
 }
 
 func New(chip string, pin int) (*DHTxx, error) {
-	line, err := gpiocdev.RequestLine(chip, pin, gpiocdev.AsInput)
-	if err != nil {
-		return nil, err
-	}
-	values := make([]uint32, 0, 41)
+	values := make([]uint16, 0, 90)
 	return &DHTxx{
-		line:  line,
-		vals:  values,
-		Limit: Maximum_number_of_reads,
-		Sleep: DefaultSleep,
+		chip:   chip,
+		offset: pin,
+		vals:   values,
+		Limit:  Maximum_number_of_reads,
+		Config: CfgDHT22,
 	}, nil
 }
 
 func (dht *DHTxx) Close() error {
-	return dht.line.Close()
+	return dht.close()
 }
 
 func (dht *DHTxx) Read(buf DHTdata, retry int) (retries int, err error) {
@@ -62,90 +64,23 @@ func (dht *DHTxx) Read(buf DHTdata, retry int) (retries int, err error) {
 			}
 		}
 		if retries < retry {
-			time.Sleep(dht.Sleep.Retry)
+			time.Sleep(dht.Config.Retry)
+		} else {
+			break
 		}
 	}
 	return
 }
-func (dht *DHTxx) read() (uint32, error) {
-	line := dht.line
-	values := dht.vals[:0]
 
-	if dht.Sleep.Pre > 0 {
-		time.Sleep(dht.Sleep.Pre)
-	}
-
-	if err := line.Reconfigure(gpiocdev.AsOutput(0)); err != nil {
-		return 0, fmt.Errorf("AsOutput(0) error:%w", err)
-	}
-
-	if dht.Sleep.Low > 0 {
-		time.Sleep(dht.Sleep.Low)
-	}
-
-	if err := line.SetValue(1); err != nil {
-		return 0, fmt.Errorf("SetValue(1) error:%w", err)
-	}
-
-	if dht.Sleep.High > 0 {
-		time.Sleep(dht.Sleep.High)
-	}
-
-	if err := line.Reconfigure(gpiocdev.AsInput); err != nil {
-		return 0, fmt.Errorf("AsInput error:%w", err)
-	}
-
-	var j uint32 = 0
-	last := 1
-	for ; j < dht.Limit; j++ {
-		v, err := line.Value()
-		if err != nil {
-			return 0, err
+func value_print(vals []uint16, firstvalue int) {
+	hl := []string{"L", "H"}
+	hl2 := []string{"-", "="}
+	for i, v := range vals {
+		fmt.Printf("%2d:%2d:%s:", i, v, hl[firstvalue])
+		for range v {
+			fmt.Print(hl2[firstvalue])
 		}
-		if last != v && v == 1 {
-			i := j
-			for j < dht.Limit {
-				v, err := line.Value()
-				if err != nil {
-					return 0, err
-				}
-				if v == 0 {
-					break
-				}
-				j++
-			}
-			values = append(values, j-i)
-			if len(values) == 41 {
-				break
-			}
-		} else {
-			last = v
-		}
+		fmt.Print("\n")
+		firstvalue ^= 1
 	}
-	if len(values) != 41 {
-		if len(values) > 0 {
-			return 0, fmt.Errorf("len(values)=%d,values[0]=%d %w", len(values), values[0], ErrinvalidData)
-		}
-		return 0, fmt.Errorf("j=%d last=%d %w", j, last, ErrinvalidData)
-	}
-	border := values[0] //80ns
-	var recvBits uint64
-	for i, v := range values[1:] {
-		if v*2 > border {
-			recvBits |= (1 << (39 - i))
-		}
-	}
-	sum := uint8(recvBits>>8) + uint8(recvBits>>16) + uint8(recvBits>>24) + uint8(recvBits>>32)
-	if sum != uint8(recvBits) {
-		// fmt.Print("checksum\n")
-		// for i, v := range values {
-		// 	fmt.Printf("%03d: val:%03d ", i, v)
-		// 	for range v {
-		// 		fmt.Print("#")
-		// 	}
-		// 	fmt.Print("#\n")
-		// }
-		return 0, ErrChecksum
-	}
-	return uint32(recvBits >> 8), nil
 }

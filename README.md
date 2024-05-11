@@ -1,14 +1,16 @@
 # dht
-golang dht22 sensor reader
+golang dht11/dht12/dht22 sensor reader
 
 ```go
-d, err := dht.New("gpiochip0", 4)
+d, err := dht.New("/dev/gpiochip0", 4)
 if err != nil {
 	log.Fatal(err)
 }
 defer d.Close()
 
 var buf dht.DHT22Data
+//var buf dht.DHT11Data
+//var buf dht.DHT12Data
 
 fmt.Print("read...\r")
 if retry, err := d.Read(&buf, 20); err != nil {

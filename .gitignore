@@ -22,3 +22,5 @@ go.work
 
 dht22
 *.bat
+libgpiod/
+_path/
