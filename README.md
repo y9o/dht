@@ -121,3 +121,8 @@ $ ./dht22 -chip gpiochip0  -line 4
 ```
 </details>
 
+## cgo with libgpiod v2 support
+
+This module can be built with `CGO_ENABLED=0` or `CGO_ENABLED=1`.
+
+However, using CGO does not dramatically improve the reading success rate.
