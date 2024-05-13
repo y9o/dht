@@ -5,6 +5,7 @@ package dht
 /*
 #cgo CFLAGS: -I${SRCDIR}/libgpiod/include
 #cgo LDFLAGS: -lgpiod
+#include <stdlib.h>
 #include "dht.h"
 */
 import "C"
@@ -33,7 +34,9 @@ func (dht *DHTxx) read() (uint32, error) {
 	cfg.limit = C.int(dht.Limit)
 	cfg.vague = C.int(dht.Config.Vague)
 	if dht.pcgo == nil {
-		p := C.newDHT(C.CString(dht.chip), C.uint(dht.offset))
+		chip := C.CString(dht.chip)
+		p := C.newDHT(chip, C.uint(dht.offset))
+		C.free(unsafe.Pointer(chip))
 		if p == nil {
 			return 0, errors.New("failed newDHT")
 		}
@@ -50,7 +53,9 @@ func (dht *DHTxx) read() (uint32, error) {
 
 func (dht *DHTxx) GetReadTime(count int) (time.Duration, error) {
 	if dht.pcgo == nil {
-		p := C.newDHT(C.CString(dht.chip), C.uint(dht.offset))
+		chip := C.CString(dht.chip)
+		p := C.newDHT(chip, C.uint(dht.offset))
+		C.free(unsafe.Pointer(chip))
 		if p == nil {
 			return 0, errors.New("failed newDHT")
 		}

@@ -5,7 +5,7 @@ export CGO_LDFLAGS=-L$(LIBGPIOD)/lib
 export GOPATH=/work/_path
 export CGO_ENABLED=1
 build:
-	go build -ldflags="-s -w" -trimpath
+	go build -ldflags="-s -w" -trimpath -buildvcs=false
 
 libgpiod:
 	curl -O https://cdn.kernel.org/pub/software/libs/libgpiod/libgpiod-2.1.1.tar.xz

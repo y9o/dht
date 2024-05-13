@@ -9,4 +9,4 @@ require (
 
 require golang.org/x/sys v0.20.0 // indirect
 
-//replace github.com/y9o/dht => ../dht
+replace github.com/y9o/dht => ../
